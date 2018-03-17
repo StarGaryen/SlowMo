@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 public class OverrideNeworkDiscovery : NetworkDiscovery {
 
     public static OverrideNeworkDiscovery singleton { get; private set; }
-    private Dictionary<MatchJoiner,float> localMatches; //float is expire time
+    private Dictionary<string,Tuple<MatchJoiner,float> > localMatches; //float is expire time
     private NetworkManager networkManager;
 
     private LANMatch localMatch; // data to broadcast as server
@@ -14,6 +14,7 @@ public class OverrideNeworkDiscovery : NetworkDiscovery {
    
     void Awake()
     {        
+        
         if (singleton == null)
         {
             singleton = this;
@@ -22,7 +23,7 @@ public class OverrideNeworkDiscovery : NetworkDiscovery {
         {
             Destroy(this);
         }
-        localMatches = new Dictionary<MatchJoiner, float>();
+        localMatches = new Dictionary<string, Tuple<MatchJoiner, float> >();
         
     }
 
@@ -40,13 +41,14 @@ public class OverrideNeworkDiscovery : NetworkDiscovery {
         if (validData)
         {
             Debug.Log("Valid Data");
-            if (!localMatches.ContainsKey(match))
+            var tuple = new  Tuple<MatchJoiner, float>(match, Time.time + broadcastInterval + 1f);
+            if (!localMatches.ContainsKey(fromAddress))
             {
-                localMatches.Add(match, Time.time + broadcastInterval +1f);
+                localMatches.Add(fromAddress,tuple);
             }
             else
             {
-                localMatches[match] = Time.time + broadcastInterval + 1f;
+                localMatches[fromAddress] = tuple;
             }
         }
         else
@@ -61,9 +63,9 @@ public class OverrideNeworkDiscovery : NetworkDiscovery {
         while (true)
         {
             
-            foreach(LANMatch match in localMatches.Keys)
+            foreach(string match in localMatches.Keys)
             {
-                if(localMatches[match] >= Time.time)
+                if(localMatches[match].Item2 >= Time.time)
                 {
                     localMatches.Remove(match);
                 }
@@ -114,7 +116,12 @@ public class OverrideNeworkDiscovery : NetworkDiscovery {
     public  MatchJoiner[] GetMatchList()
     {
         MatchJoiner[] matches = new MatchJoiner[localMatches.Count];
-        localMatches.Keys.CopyTo(matches, 0);
+        int i = 0;
+        foreach (string match in localMatches.Keys)
+        {
+            matches[i++] = localMatches[match].Item1;
+            
+        }
         return matches;
 
     }
